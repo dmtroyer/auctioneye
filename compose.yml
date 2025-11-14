@@ -1,0 +1,14 @@
+services:
+  auction_scraper:
+    profiles: ["manual"]
+    build: .
+    volumes:
+      - ./data:/data
+    environment:
+      - BASE_URL=${BASE_URL}
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - EMAIL_TO=${EMAIL_TO}
