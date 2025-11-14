@@ -126,22 +126,9 @@ def fetch_page_html(page: int) -> str:
 
 
 def parse_items_from_html(html: str) -> List[Dict]:
-    """
-    Parse listing items from a SWAP /Browse page.
-
-    NOTE: This relies on broad heuristics (h2/h3 + parent text).
-    You may want to tweak selectors after inspecting the HTML in your browser.
-    """
     soup = BeautifulSoup(html, "html.parser")
     items = []
 
-    # Heuristic: each listing has a heading link:
-    #   ##  [link] 20 Bid(s) Something (A1)
-    # The detail page link is usually on that <a>.
-    # We'll:
-    #   - find h2/h3 elements with an <a>
-    #   - use that link as the URL + title
-    #   - pull price + listing id from surrounding text
     for section in soup.find_all("section", attrs={"data-listingid": True}):
         try:
             link = section.select_one("h2.title a[href]")
