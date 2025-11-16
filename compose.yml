@@ -1,7 +1,7 @@
 services:
   auction_scraper:
     profiles: ["manual"]
-    build: .
+    image: ghcr.io/dmtroyer/auctioneye:latest
     volumes:
       - ./data:/data
     environment:
