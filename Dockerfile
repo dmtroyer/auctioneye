@@ -10,4 +10,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Default command: run the watcher
-CMD ["python", "src/watcher.py"]
+CMD ["python", "-m", "src"]
