@@ -10,7 +10,10 @@ from typing import List, Dict
 from urllib.parse import urlencode, urljoin
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+from pathlib import Path
 
+BASE_DIR = Path(__file__).resolve().parent
 import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
@@ -54,7 +57,12 @@ USER_AGENT = os.getenv(
 )
 REQUEST_TIMEOUT = 20
 
-
+env = Environment(
+    loader=FileSystemLoader(str(BASE_DIR / "templates")),
+    autoescape=select_autoescape(["html", "xml"]),
+)
+html_template = env.get_template("email.html.j2")
+html_no_items_template = env.get_template("email-no-items.html.j2")
 # --------------------------------------------------------------------
 # SQLite helpers
 # --------------------------------------------------------------------
@@ -234,71 +242,33 @@ def send_email(subject: str, text_body: str, html_body: str) -> None:
         smtp.send_message(msg)
 
 
-def format_email_bodies(new_items: List[Dict]) -> tuple[str, str]:
-    # ---------- Plain text (fallback) ----------
-    text_lines = []
-    text_lines.append(f"New SWAP items ({len(new_items)}):\n")
+from typing import List, Dict
 
+from typing import List, Dict
+
+def format_email_bodies(new_items: List[Dict]) -> tuple[str, str]:
+    if not new_items:
+        # Plain text fallback
+        text_body = "No new SWAP items.\n\nThe watcher ran successfully."
+
+        # HTML body from the no-items template
+        html_body = html_no_items_template.render(
+            run_timestamp=datetime.now(UTC).isoformat()
+        )
+        return text_body, html_body
+
+    # ---------- New items case ----------
+    text_lines = [f"New SWAP items ({len(new_items)}):", ""]
     for item in sorted(new_items, key=lambda i: i["title"].lower()):
         price = item.get("price") or "N/A"
         text_lines.append(f"- {item['title']} ({price})")
         text_lines.append(f"  {item['url']}")
-        image_url = item.get("image")
-        if image_url:
-            text_lines.append(f"  Image: {image_url}")
+        if item.get("image"):
+            text_lines.append(f"  Image: {item['image']}")
         text_lines.append("")
-
     text_body = "\n".join(text_lines)
 
-    # ---------- HTML ----------
-    html_items = []
-
-    for item in sorted(new_items, key=lambda i: i["title"].lower()):
-        title = item["title"]
-        url = item["url"]
-        price = item.get("price") or "N/A"
-        image_url = item.get("image")
-
-        # Simple "card" per item
-        item_html = [
-            '<tr>',
-            '  <td style="padding: 10px; border-bottom: 1px solid #ddd;">',
-            f'    <div style="font-size: 16px; font-weight: bold; margin-bottom: 4px;">'
-            f'<a href="{url}" style="color: #1155cc; text-decoration: none;">{title}</a></div>',
-            f'    <div style="margin-bottom: 4px; color: #555;">Price: {price}</div>',
-        ]
-
-        if image_url:
-            item_html.append(
-                f'    <div style="margin-bottom: 4px;">'
-                f'<a href="{url}"><img src="{image_url}" alt="" '
-                f'style="max-width: 200px; height: auto; border: 1px solid #ccc;" /></a></div>'
-            )
-
-        item_html.append(
-            f'    <div style="font-size: 12px;"><a href="{url}">{url}</a></div>'
-        )
-        item_html.append("  </td>")
-        item_html.append("</tr>")
-
-        html_items.append("\n".join(item_html))
-
-    html_body = f"""\
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>New SWAP items</title>
-  </head>
-  <body style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
-    <h2>New SWAP items ({len(new_items)})</h2>
-    <table cellspacing="0" cellpadding="0" border="0" style="border-collapse: collapse; width: 100%; max-width: 700px;">
-      {''.join(html_items)}
-    </table>
-  </body>
-</html>
-"""
-
+    html_body = html_template.render(items=new_items)
     return text_body, html_body
 
 
@@ -314,16 +284,20 @@ def main() -> None:
     all_items = fetch_all_items()
     new_items = [i for i in all_items if i["id"] not in seen_ids]
 
-    if not new_items:
-        print("No new items.")
-        return
+    if new_items:
+        subject = f"{len(new_items)} new SWAP item(s) found"
+        # record new ids only when there actually are new items
+        add_seen_ids({i["id"] for i in new_items})
+    else:
+        subject = "No new SWAP items"
 
-    subject = f"{len(new_items)} new SWAP item(s) found"
     text_body, html_body = format_email_bodies(new_items)
     send_email(subject, text_body, html_body)
 
-    add_seen_ids({i["id"] for i in new_items})
-    print(f"Sent email with {len(new_items)} new items.")
+    print(
+        f"Email sent. New items: {len(new_items)}. "
+        f"Total items on page(s): {len(all_items)}."
+    )
 
 
 if __name__ == "__main__":

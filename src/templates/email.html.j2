@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>New SWAP items</title>
+  </head>
+
+  <body style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
+    <h2>New SWAP items ({{ items|length }})</h2>
+
+    <!-- Outer table to keep mail clients happy -->
+    <table cellpadding="0" cellspacing="0" border="0"
+           style="border-collapse: collapse; width: 100%; max-width: 900px;">
+
+      {% for row in items|batch(3, fill_with=None) %}
+      <tr>
+        {% for item in row %}
+        <td valign="top"
+            style="width: 33%; padding: 10px; border-bottom: 1px solid #eee;">
+
+          {% if item %}
+          <!-- Card -->
+          <div style="border: 1px solid #ddd; border-radius: 6px; padding: 10px;">
+
+            <div style="font-size: 15px; font-weight: bold; margin-bottom: 6px;">
+              <a href="{{ item.url }}"
+                 style="color: #1155cc; text-decoration: none;">
+                {{ item.title }}
+              </a>
+            </div>
+
+            <div style="margin-bottom: 6px; color: #555;">
+              Price: {{ item.price or "N/A" }}
+            </div>
+
+            {% if item.image %}
+            <div style="margin-bottom: 6px; text-align: center;">
+              <a href="{{ item.url }}">
+                <img src="{{ item.image }}" alt=""
+                     style="max-width: 100%; height: auto; border: 1px solid #ccc;">
+              </a>
+            </div>
+            {% endif %}
+
+            <div style="font-size: 12px;">
+              <a href="{{ item.url }}">{{ item.url }}</a>
+            </div>
+          </div>
+          {% endif %}
+
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+
+    </table>
+  </body>
+</html>
