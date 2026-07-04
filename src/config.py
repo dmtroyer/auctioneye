@@ -1,4 +1,5 @@
 """Configuration management for AuctionEye."""
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -6,6 +7,9 @@ from typing import Optional
 from urllib.parse import urlencode, urljoin
 
 from dotenv import load_dotenv
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -17,8 +21,8 @@ class Config:
     browse_path: str
     max_pages: int
 
-    # Database configuration
-    db_path: Path
+    # Storage configuration
+    dynamodb_table: str
 
     # SMTP configuration
     smtp_host: str
@@ -66,13 +70,22 @@ class Config:
         # Required variables
         base_url = os.environ["BASE_URL"]
         smtp_user = os.environ["SMTP_USER"]
-        smtp_pass = os.environ["SMTP_PASS"]
+        dynamodb_table = os.environ["DYNAMODB_TABLE"]
+
+        # SMTP password: either provided directly, or fetched from SSM Parameter
+        # Store (SecureString) so it never lives in Lambda env vars / TF state.
+        smtp_pass_ssm_param = os.getenv("SMTP_PASS_SSM_PARAM")
+        smtp_pass = os.getenv("SMTP_PASS")
+        if not smtp_pass:
+            if smtp_pass_ssm_param:
+                smtp_pass = cls._fetch_ssm_secret(smtp_pass_ssm_param)
+            else:
+                raise KeyError("SMTP_PASS")
 
         # Optional with defaults
         log_level = os.getenv("LOG_LEVEL", "INFO").upper()
         browse_path = os.getenv("BROWSE_PATH", "/Browse")
         max_pages = int(os.getenv("MAX_PAGES", "20"))
-        db_path = Path(os.getenv("DB_PATH", "/data/seen_items.db"))
 
         smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
         smtp_port = int(os.getenv("SMTP_PORT", "587"))
@@ -89,7 +102,7 @@ class Config:
             base_url=base_url,
             browse_path=browse_path,
             max_pages=max_pages,
-            db_path=db_path,
+            dynamodb_table=dynamodb_table,
             smtp_host=smtp_host,
             smtp_port=smtp_port,
             smtp_user=smtp_user,
@@ -100,3 +113,20 @@ class Config:
             request_timeout=request_timeout,
             log_level=log_level,
         )
+
+    @staticmethod
+    def _fetch_ssm_secret(param_name: str) -> str:
+        """Fetch a decrypted SecureString value from SSM Parameter Store.
+
+        Args:
+            param_name: Name of the SSM parameter holding the secret.
+
+        Returns:
+            The decrypted parameter value.
+        """
+        import boto3
+
+        logger.info("Fetching secret from SSM parameter %s", param_name)
+        client = boto3.client("ssm")
+        response = client.get_parameter(Name=param_name, WithDecryption=True)
+        return response["Parameter"]["Value"]

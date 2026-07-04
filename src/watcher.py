@@ -9,10 +9,13 @@ import logging
 from pathlib import Path
 
 from .config import Config
-from .repository import ItemRepository
+from .dynamo_repository import DynamoItemRepository
 from .scraper import ScraperService
 from .email_service import EmailService, EmailConfig
 from .watcher_service import AuctionWatcher
+
+
+logger = logging.getLogger(__name__)
 
 
 def setup_logging(log_level: str) -> None:
@@ -32,8 +35,9 @@ def create_watcher(config: Config) -> AuctionWatcher:
     Returns:
         Configured AuctionWatcher instance
     """
-    # Create repository
-    repository = ItemRepository(config.db_path)
+    # Create repository (DynamoDB)
+    logger.info("Using DynamoDB repository (table=%s)", config.dynamodb_table)
+    repository = DynamoItemRepository(config.dynamodb_table)
 
     # Create scraper
     scraper = ScraperService(

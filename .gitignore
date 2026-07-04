@@ -1,2 +1,15 @@
 .env
-data/*.db
+.envrc
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Terraform
+infra/build/
+infra/.terraform/
+*.tfstate
+*.tfstate.*
+infra/terraform.tfvars

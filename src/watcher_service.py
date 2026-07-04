@@ -2,7 +2,7 @@
 import logging
 from typing import List, Dict
 
-from .repository import ItemRepository
+from .dynamo_repository import DynamoItemRepository
 from .scraper import ScraperService
 from .email_service import EmailService
 
@@ -15,7 +15,7 @@ class AuctionWatcher:
 
     def __init__(
         self,
-        repository: ItemRepository,
+        repository: DynamoItemRepository,
         scraper: ScraperService,
         email_service: EmailService,
         max_pages: int

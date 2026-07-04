@@ -1,0 +1,27 @@
+# Copy to terraform.tfvars and fill in. Do NOT commit terraform.tfvars.
+
+region       = "us-east-1"
+project_name = "auctioneye"
+
+# Named AWS profile (e.g. your SSO profile) so `terraform` doesn't need
+# AWS_PROFILE set. Omit to use AWS_PROFILE / the default credential chain.
+aws_profile = "personal"
+
+# Schedule: daily at 10pm in your local timezone.
+schedule_expression = "cron(0 22 * * ? *)"
+schedule_timezone   = "America/Chicago"
+
+# Auction site
+base_url    = "https://example-auction-site.com"
+browse_path = "/Browse"
+max_pages   = 20
+
+# Email (Gmail SMTP by default)
+smtp_host = "smtp.gmail.com"
+smtp_port = 587
+smtp_user = "you@gmail.com"
+smtp_pass = "your-gmail-app-password" # stored in SSM SecureString
+# email_from = ""  # defaults to smtp_user
+# email_to   = ""  # defaults to smtp_user
+
+log_level = "INFO"

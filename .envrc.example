@@ -1,0 +1,2 @@
+# .envrc.example  (committed)
+export AWS_PROFILE=personal   # rename to your SSO profile
