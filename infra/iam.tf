@@ -36,7 +36,7 @@ data "aws_iam_policy_document" "lambda" {
   statement {
     sid       = "SsmGetSecret"
     actions   = ["ssm:GetParameter"]
-    resources = [aws_ssm_parameter.smtp_pass.arn]
+    resources = [local.smtp_pass_param_arn]
   }
 
   # SecureString values are encrypted with the AWS-managed SSM key; decrypt is

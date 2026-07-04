@@ -20,7 +20,10 @@ max_pages   = 20
 smtp_host = "smtp.gmail.com"
 smtp_port = 587
 smtp_user = "you@gmail.com"
-smtp_pass = "your-gmail-app-password" # stored in SSM SecureString
+# The SMTP password is NOT a Terraform variable — it never enters state. Store it
+# in SSM out-of-band before deploying:
+#   aws ssm put-parameter --name /auctioneye/smtp_pass --type SecureString \
+#       --value '<gmail app password>' --overwrite
 # email_from = ""  # defaults to smtp_user
 # email_to   = ""  # defaults to smtp_user
 

@@ -9,7 +9,11 @@ locals {
 
 resource "null_resource" "build" {
   triggers = {
+    # Rebuild when source or deps change...
     build_hash = local.build_hash
+    # ...and self-heal if the staging dir is missing (e.g. build/ was deleted or
+    # this is a fresh clone), so archive_file below never hits a missing dir.
+    package_present = fileexists("${local.build_dir}/package/src/lambda_handler.py")
   }
 
   provisioner "local-exec" {
@@ -37,8 +41,12 @@ resource "aws_lambda_function" "watcher" {
   runtime       = "python3.12"
   handler       = "src.lambda_handler.handler"
 
-  filename         = data.archive_file.lambda.output_path
-  source_code_hash = data.archive_file.lambda.output_base64sha256
+  filename = data.archive_file.lambda.output_path
+  # Drive updates off a content hash of the source + deps, NOT the zip's bytes.
+  # pip produces non-deterministic zips (file mtimes, dist-info/RECORD), so
+  # hashing the zip would redeploy on every rebuild even when nothing changed.
+  # build_hash only moves when src/ or requirements.txt actually change.
+  source_code_hash = local.build_hash
 
   timeout     = var.lambda_timeout
   memory_size = var.lambda_memory_size
@@ -46,7 +54,7 @@ resource "aws_lambda_function" "watcher" {
   environment {
     variables = {
       DYNAMODB_TABLE      = aws_dynamodb_table.seen_items.name
-      SMTP_PASS_SSM_PARAM = aws_ssm_parameter.smtp_pass.name
+      SMTP_PASS_SSM_PARAM = local.smtp_pass_param_name
 
       BASE_URL        = var.base_url
       BROWSE_PATH     = var.browse_path

@@ -6,7 +6,8 @@ Provisions the watcher on AWS:
   watcher pass per invocation. Packaged as a zip built by `build.sh`.
 - **DynamoDB** table (`<project>-seen-items`, PAY_PER_REQUEST) — stores seen item IDs.
 - **SSM Parameter Store** SecureString (`/<project>/smtp_pass`) — the SMTP password,
-  fetched at runtime.
+  fetched at runtime. Created out-of-band (see below), not managed by Terraform, so
+  the secret never enters state.
 - **EventBridge Scheduler** — invokes the Lambda daily at 10pm (`schedule_timezone`).
 - IAM roles + CloudWatch log group.
 
@@ -36,6 +37,10 @@ First-time CLI setup, if the profile doesn't exist yet: `aws configure sso`
 cd infra
 cp terraform.tfvars.example terraform.tfvars   # then edit (incl. aws_profile)
 
+# One-time: store the SMTP password in SSM (Terraform never sees it).
+aws ssm put-parameter --name /auctioneye/smtp_pass --type SecureString \
+    --value '<gmail app password>' --overwrite
+
 terraform init
 terraform validate
 terraform plan
@@ -59,10 +64,17 @@ aws logs tail "$(terraform output -raw log_group_name)" --follow
 
 ## Secret handling note
 
-`smtp_pass` is written to Terraform state, so state must be treated as sensitive.
-It is kept in an encrypted, versioned S3 bucket (see Remote state below). To keep
-the secret out of state entirely instead, create the SSM parameter out-of-band and
-swap `ssm.tf`'s `resource` for a `data "aws_ssm_parameter"` lookup.
+The SMTP password is **not** managed by Terraform and never enters its state.
+It's stored directly in SSM Parameter Store (SecureString) via `aws ssm
+put-parameter` (see Usage), and Terraform only references the parameter's name
+and ARN — which it constructs in `ssm.tf` rather than reading (a
+`data "aws_ssm_parameter"` lookup would pull the value back into state).
+
+To rotate the password, just re-run the `put-parameter` command with `--overwrite`;
+no Terraform change is needed. The Lambda reads the current value on each run.
+
+Note: earlier state versions in the S3 bucket may still contain the old
+Terraform-managed value. Purge old versions if that matters to you.
 
 ## Remote state (S3)
 

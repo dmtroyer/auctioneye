@@ -106,11 +106,8 @@ variable "smtp_user" {
   type        = string
 }
 
-variable "smtp_pass" {
-  description = "SMTP password (e.g. Gmail app password). Stored in SSM SecureString."
-  type        = string
-  sensitive   = true
-}
+# NOTE: there is no smtp_pass variable. The SMTP password is stored in SSM
+# out-of-band (see ssm.tf) and never passes through Terraform / its state.
 
 variable "email_from" {
   description = "From address (EMAIL_FROM). Defaults to smtp_user if empty."
